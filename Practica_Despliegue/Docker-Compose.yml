@@ -1,0 +1,92 @@
+services:
+  practica_server:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: practica-server
+    volumes:
+      - documentation:/app/doc
+      - jacoco:/app/jacoco
+      - tests:/app/tests
+
+
+  nginx_presentacion:
+    image: ubuntu/nginx:latest
+    container_name: nginx_presentacion
+    ports:
+      - "8081:80"
+    volumes:
+      - ./despliegue/informe/index.html:/var/www/html/informe/index.html
+      - ./despliegue/informe/default:/etc/nginx/sites-available/default
+    restart: always
+    depends_on:
+      - practica_server
+    networks:
+      - servers
+
+  apache_doc:
+    image: ubuntu/apache2:latest
+    container_name: apache_doc
+    ports:
+      - "8082:80"
+    volumes:
+      - documentation:/var/www/html/
+      - ./despliegue/apache_Documentation/000-default.conf:/etc/apache2/sites-available/000-default.conf
+    restart: always
+    depends_on:
+      - practica_server
+    networks:
+      - servers
+
+  nginx_coverage:
+    image: ubuntu/nginx:latest
+    container_name: nginx_coverage
+    ports:
+      - "8083:80"
+    volumes:
+      - jacoco:/var/www/html/
+      - ./despliegue/nginx_Coverage/default:/etc/nginx/sites-available/default
+    restart: always
+    depends_on:
+      - practica_server
+    networks:
+      - servers
+
+  nginx_test:
+    image: ubuntu/nginx:latest
+    container_name: nginx_test
+    ports:
+      - "8084:80"
+    volumes:
+      - tests:/var/www/html/
+      - ./despliegue/nginx_Test/default:/etc/nginx/sites-available/default
+    restart: always
+    depends_on:
+      - practica_server
+    networks:
+      - servers
+
+  reverse_proxy:
+    image: ubuntu/nginx:latest
+    container_name: reverse_proxy
+    volumes:
+      - ./despliegue/proxy/nginx.conf:/etc/nginx/nginx.conf
+      - ./despliegue/proxy/certs:/etc/nginx/certs
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: always
+    depends_on:
+      - nginx_presentacion
+      - apache_doc
+      - nginx_coverage
+      - nginx_test
+    networks:
+      - servers
+
+volumes:
+  documentation:
+  jacoco:
+  tests:
+networks:
+  servers:
